@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion Sleep Tracker</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --card-bg: #141414;
+      --text: #e0e0e0;
+      --border: #2a2a2a;
+      --btn-bg: #1f1f1f;
+      --btn-hover: #2d2d2d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      width: 100%;
+      max-width: 900px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f5f5f5;
+      letter-spacing: -0.5px;
+    }
+
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="date"], input[type="text"] {
+      background-color: #0d0d0d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 90px;
+      box-sizing: border-box;
+    }
+    
+    input[type="date"] { width: 130px; }
+    input:focus { border-color: #555; }
+
+    button {
+      background-color: var(--btn-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      height: 40px;
+    }
+
+    button:hover { background-color: var(--btn-hover); }
+
+    .btn-log {
+      background-color: #4d24e0 !important;
+      border: none !important;
+      color: white !important;
+    }
+    .btn-log:hover { background-color: #5d34f0 !important; }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      margin-bottom: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: var(--card-bg);
+      min-width: 200px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+      z-index: 10;
+      padding: 8px;
+    }
+    .dropdown.show .dropdown-content { display: block; }
+    
+    /* FIX: Adjusted position to toggle downwards instead of upwards out of frame */
+    .dropdown-content.right { right: 0; top: 100%; margin-top: 8px; }
+    .dropdown-content.left { left: 0; top: 100%; margin-top: 8px; }
+
+    .dropdown-item {
+      display: flex; align-items: center; gap: 10px; padding: 8px;
+      font-size: 0.85rem; cursor: pointer; border-radius: 6px; user-select: none;
+    }
+    .dropdown-item:hover { background-color: var(--btn-bg); }
+    .view-title { font-size: 0.75rem; color: #888; margin: 8px 8px 4px 8px; text-transform: uppercase; }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      margin-top: 10px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: default;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 8px 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      font-size: 0.85rem;
+      color: #eee;
+      align-items: center;
+      gap: 8px;
+    }
+    .tooltip-color { width: 12px; height: 12px; border-radius: 50%; }
+
+    .modal {
+      display: none; position: fixed; z-index: 1000; left: 0; top: 0; 
+      width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+      align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background-color: var(--card-bg);
+      border: 2px solid #ff0000;
+      border-radius: 12px;
+      padding: 28px;
+      position: relative;
+      text-align: center;
+      max-width: 380px;
+      box-shadow: 0 10px 40px rgba(255,0,0,0.2);
+    }
+    .modal-content p { color: #ff0000; font-weight: 600; margin-bottom: 24px; line-height: 1.4; }
+    .close-btn { 
+      position: absolute; top: 12px; right: 16px; color: #ff0000; 
+      font-size: 24px; cursor: pointer; font-weight: bold; line-height: 1;
+    }
+    .modal-buttons { display: flex; gap: 12px; justify-content: center; }
+    .btn-yes { background: var(--btn-bg); color: #ff0000; border: 1px solid #ff0000; }
+    .btn-no { background: var(--btn-bg); color: #888; border: 1px solid #555; }
+  </style>
+</head>
+<body>
+
+  <!-- Warning Modal -->
+  <div id="warningModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">×</span>
+      <p>Warning! Entries missing, would you like to proceed?</p>
+      <div class="modal-buttons">
+        <button class="btn-yes" onclick="confirmAddEntry()">Yes</button>
+        <button class="btn-no" onclick="closeModal()">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="header">
+      <span style="font-size: 1.8rem;">🌙</span>
+      <h1>Sleep Tracker Trend</h1>
+    </div>
+
+    <!-- Input Form -->
+    <div class="form-row">
+      <div class="input-group">
+        <label>Date</label>
+        <input type="date" id="dateInput">
+      </div>
+      <div class="input-group">
+        <label>In Bed</label>
+        <input type="text" id="timeFrom" placeholder="2330" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>Out Bed</label>
+        <input type="text" id="timeTo" placeholder="0715" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>Awake</label>
+        <input type="text" id="awakeInput" placeholder="0015" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>REM</label>
+        <input type="text" id="remInput" placeholder="0130" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>Deep</label>
+        <input type="text" id="deepInput" placeholder="0115" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>Light</label>
+        <input type="text" id="lightInput" placeholder="0415" maxlength="4">
+      </div>
+      <button class="btn-log" onclick="attemptAddEntry()" style="margin-bottom: 2px;">Log Sleep</button>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="dropdown" id="viewDropdown">
+        <button onclick="toggleDropdown('viewDropdown')">👁️ View Options ▼</button>
+        <div class="dropdown-content left" id="viewMenu">
+          <div class="view-title">Display Mode</div>
+          <label class="dropdown-item">
+            <input type="radio" name="viewMode" value="bar" checked onchange="changeView()"> Cumulative Bar Graph
+          </label>
+          <label class="dropdown-item">
+            <input type="radio" name="viewMode" value="line" onchange="changeView()"> Line Graph
+          </label>
+          
+          <div class="view-title" style="margin-top: 12px;">Line Graph Categories</div>
+          <label class="dropdown-item"><input type="checkbox" id="chkTrend" checked onchange="drawChart()"> General Trend</label>
+          <label class="dropdown-item"><input type="checkbox" id="chkAwake" checked onchange="drawChart()"> Time Awake</label>
+          <label class="dropdown-item"><input type="checkbox" id="chkRem" checked onchange="drawChart()"> REM Sleep</label>
+          <label class="dropdown-item"><input type="checkbox" id="chkDeep" checked onchange="drawChart()"> Deep Sleep</label>
+          <label class="dropdown-item"><input type="checkbox" id="chkLight" checked onchange="drawChart()"> Light Sleep</label>
+          <label class="dropdown-item"><input type="checkbox" id="chkUncat" checked onchange="drawChart()"> Uncategorized</label>
+        </div>
+      </div>
+      
+      <div class="dropdown" id="resetDropdown">
+        <button onclick="toggleDropdown('resetDropdown')">Reset Entries ▼</button>
+        <div class="dropdown-content right" id="dropdownMenu"></div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container" id="chartContainer">
+      <canvas id="chartCanvas"></canvas>
+      <div id="tooltip" class="tooltip"></div>
+    </div>
+  </div>
+
+  <script>
+    // URL to your Google Apps Script Web App
+    const API_URL = "https://script.google.com/macros/s/AKfycbyph0_F-M5WWFqQ4XoFSxbV_gUCMKx-rRcmJQXX-ViW2l0dKek-sAKTZ8dgHGBgTmxa/exec";
+
+    let logs = [];
+    let isBarView = true;
+    let hitRegions = [];
+    let pendingEntry = null;
+    
+    const COLORS = {
+      awake: '#f26f2a',
+      rem: '#758e4f',
+      deep: '#33658a',
+      light: '#86bbd8',
+      uncat: '#1d55c4',
+      trend: '#e0e0e0'
+    };
+    
+    document.getElementById('dateInput').valueAsDate = new Date();
+
+    // Fetch data live from Cloud API on load
+    async function loadCloudData() {
+      try {
+        if (API_URL !== "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE") {
+          const res = await fetch(API_URL);
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            logs = data;
+          }
+        } else {
+          logs = JSON.parse(localStorage.getItem('notion_sleep_master')) || [];
+        }
+      } catch (e) {
+        logs = JSON.parse(localStorage.getItem('notion_sleep_master')) || [];
+      }
+      saveDataLocally();
+    }
+
+    function parseHHMM(val) {
+      if (!val) return null;
+      val = String(val).replace(/\D/g, '');
+      if (val.length === 0) return null;
+      if (val.length <= 2) val = val.padStart(4, '0');
+      if (val.length === 3) val = '0' + val;
+      const h = parseInt(val.substring(0, 2), 10);
+      const m = parseInt(val.substring(2, 4), 10);
+      return h + (m / 60);
+    }
+
+    function attemptAddEntry() {
+      const date = document.getElementById('dateInput').value;
+      const fromRaw = document.getElementById('timeFrom').value;
+      const toRaw = document.getElementById('timeTo').value;
+
+      if (!date || !fromRaw || !toRaw) {
+        alert("Please fill in Date, In Bed, and Out Bed times.");
+        return;
+      }
+
+      let fromDec = parseHHMM(fromRaw);
+      let toDec = parseHHMM(toRaw);
+
+      if (fromDec < 12) fromDec += 24; 
+      if (toDec < 12) toDec += 24;
+      if (toDec < fromDec) toDec += 24; 
+
+      const totalTime = toDec - fromDec;
+
+      let a = parseHHMM(document.getElementById('awakeInput').value);
+      let r = parseHHMM(document.getElementById('remInput').value);
+      let d = parseHHMM(document.getElementById('deepInput').value);
+      let l = parseHHMM(document.getElementById('lightInput').value);
+
+      const fields = [
+        { key: 'awake', val: a }, { key: 'rem', val: r },
+        { key: 'deep', val: d }, { key: 'light', val: l }
+      ];
+      
+      const emptyFields = fields.filter(f => f.val === null);
+      const filledFields = fields.filter(f => f.val !== null);
+      let sumFilled = filledFields.reduce((sum, f) => sum + f.val, 0);
+
+      if (emptyFields.length === 1) {
+        let remainder = totalTime - sumFilled;
+        if (remainder < 0) remainder = 0;
+        
+        if (emptyFields[0].key === 'awake') a = remainder;
+        if (emptyFields[0].key === 'rem') r = remainder;
+        if (emptyFields[0].key === 'deep') d = remainder;
+        if (emptyFields[0].key === 'light') l = remainder;
+        
+        executeSave({ date, from: fromDec, to: toDec, awake: a||0, rem: r||0, deep: d||0, light: l||0, uncat: 0 });
+      
+      } else if (emptyFields.length === 0) {
+        let uncat = Math.max(0, totalTime - sumFilled);
+        executeSave({ date, from: fromDec, to: toDec, awake: a, rem: r, deep: d, light: l, uncat });
+      
+      } else {
+        let uncat = Math.max(0, totalTime - sumFilled);
+        pendingEntry = { date, from: fromDec, to: toDec, awake: a||0, rem: r||0, deep: d||0, light: l||0, uncat };
+        document.getElementById('warningModal').style.display = 'flex';
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('warningModal').style.display = 'none';
+      pendingEntry = null;
+    }
+
+    function confirmAddEntry() {
+      if (pendingEntry) executeSave(pendingEntry);
+      closeModal();
+    }
+
+    async function executeSave(entry) {
+      entry.raw = entry.date;
+      logs = logs.filter(l => l.date !== entry.date);
+      logs.push(entry);
+      logs.sort((a, b) => new Date(a.raw) - new Date(b.raw));
+      if (logs.length > 7) logs.shift();
+      
+      saveDataLocally();
+
+      // Push to Cloud API
+      if (API_URL !== "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE") {
+        fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry)
+        });
+      }
+
+      ['awakeInput', 'remInput', 'deepInput', 'lightInput', 'timeFrom', 'timeTo'].forEach(id => document.getElementById(id).value = '');
+    }
+
+    function saveDataLocally() {
+      localStorage.setItem('notion_sleep_master', JSON.stringify(logs));
+      updateDropdown();
+      drawChart();
+    }
+
+    function changeView() {
+      isBarView = document.querySelector('input[name="viewMode"]:checked').value === 'bar';
+      drawChart();
+    }
+
+    function toggleDropdown(id) { document.getElementById(id).classList.toggle('show'); }
+
+    window.onclick = function(e) {
+      if (!e.target.matches('.dropdown button')) {
+        document.querySelectorAll(".dropdown-content").forEach(d => {
+          if (!d.contains(e.target)) d.parentElement.classList.remove('show');
+        });
+      }
+    }
+
+    function updateDropdown() {
+      const menu = document.getElementById('dropdownMenu');
+      menu.innerHTML = '';
+      logs.forEach((log, index) => {
+        const d = new Date(log.date);
+        const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+        menu.innerHTML += `
+          <label class="dropdown-item" onclick="event.stopPropagation()">
+            <input type="checkbox" class="delete-cb" value="${index}"> Slot ${index + 1}: ${label}
+          </label>`;
+      });
+      menu.innerHTML += `
+        <div style="border-top: 1px solid #333; margin: 8px 0;"></div>
+        <label class="dropdown-item" onclick="event.stopPropagation()"><input type="checkbox" id="deleteAllCb"> Clear All</label>
+        <button onclick="executeDelete()" style="width: 100%; margin-top: 8px; background: #800000; border-radius: 6px;">Delete Selected</button>
+      `;
+    }
+
+    function executeDelete() {
+      if (document.getElementById('deleteAllCb')?.checked) { logs = []; }
+      else {
+        const cbs = document.querySelectorAll('.delete-cb:checked');
+        Array.from(cbs).map(cb => parseInt(cb.value)).sort((a,b)=>b-a).forEach(i => logs.splice(i, 1));
+      }
+      saveDataLocally();
+    }
+
+    function drawChart() {
+      const canvas = document.getElementById('chartCanvas');
+      const ctx = canvas.getContext('2d');
+      const cw = canvas.offsetWidth;
+      const ch = canvas.offsetHeight;
+      
+      canvas.width = cw * 2;
+      canvas.height = ch * 2;
+      ctx.scale(2, 2);
+      ctx.clearRect(0, 0, cw, ch);
+      hitRegions = [];
+      
+      if (logs.length === 0) {
+        ctx.fillStyle = '#666'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('No sleep data recorded.', cw / 2, ch / 2); return;
+      }
+
+      const padX = 50, padY = 40, chartW = cw - padX * 2, chartH = ch - padY * 2;
+      const days = [];
+      let baseDate = new Date(logs.length < 7 ? logs[0].date : logs[logs.length - 1].date);
+      let offset = logs.length < 7 ? 0 : -6;
+      
+      for(let i = 0; i < 7; i++) {
+        let d = new Date(baseDate);
+        d.setUTCDate(baseDate.getUTCDate() + offset + i);
+        days.push({
+          label: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + ' ' + d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }),
+          dateStr: d.toISOString().split('T')[0]
+        });
+      }
+
+      const slotW = chartW / 7;
+      ctx.fillStyle = '#888'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      days.forEach((day, i) => ctx.fillText(day.label, padX + (i * slotW) + (slotW / 2), ch - 10));
+
+      if (isBarView) {
+        const minY = 21, maxY = 36; 
+        const getY = (val) => padY + ((val - minY) / (maxY - minY)) * chartH;
+
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        for (let i = minY; i <= maxY; i++) {
+          const y = getY(i);
+          let h = i >= 24 ? i - 24 : i;
+          let ampm = i >= 24 ? (h >= 12 ? 'PM' : 'AM') : 'PM';
+          if (h > 12) h -= 12;
+          if (h === 0) h = 12;
+          if (i === 24) ampm = 'AM'; if (i === 36) ampm = 'PM';
+          
+          ctx.fillText(`${h} ${ampm}`, padX - 10, y);
+          ctx.strokeStyle = '#222'; ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(cw - padX, y); ctx.stroke();
+        }
+
+        days.forEach((day, i) => {
+          const log = logs.find(l => l.date === day.dateStr);
+          if (!log) return;
+          
+          const barWidth = slotW * 0.3;
+          const x = padX + (i * slotW) + (slotW / 2) - (barWidth / 2);
+          const y1_total = getY(log.from), y2_total = getY(log.to);
+          
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(x, y1_total, barWidth, y2_total - y1_total, barWidth / 2);
+          ctx.clip(); 
+
+          let currentStart = log.from;
+          const segments = [];
+          if (log.awake > 0) segments.push({ val: log.awake, color: COLORS.awake, label: 'Awake' });
+          if (log.rem > 0) segments.push({ val: log.rem, color: COLORS.rem, label: 'REM' });
+          if (log.deep > 0) segments.push({ val: log.deep, color: COLORS.deep, label: 'Deep' });
+          if (log.light > 0) segments.push({ val: log.light, color: COLORS.light, label: 'Light' });
+          if (log.uncat > 0) segments.push({ val: log.uncat, color: COLORS.uncat, label: 'Uncategorized' });
+
+          segments.forEach(seg => {
+            const sy1 = getY(currentStart), sy2 = getY(currentStart + seg.val);
+            ctx.fillStyle = seg.color;
+            ctx.fillRect(x, sy1, barWidth, sy2 - sy1);
+            hitRegions.push({ type: 'bar', x, y: sy1, w: barWidth, h: sy2 - sy1, color: seg.color, label: seg.label, val: seg.val });
+            currentStart += seg.val;
+          });
+          ctx.restore();
+        });
+      } else {
+        const maxDur = 12; 
+        const getY = (val) => padY + chartH - (val / maxDur) * chartH;
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        
+        for (let i = 0; i <= maxDur; i += 2) {
+          const y = getY(i); ctx.fillText(i + 'h', padX - 10, y);
+          ctx.strokeStyle = '#222'; ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(cw - padX, y); ctx.stroke();
+        }
+
+        const metrics = [
+          { key: 'awake', label: 'Awake', color: COLORS.awake, active: document.getElementById('chkAwake').checked },
+          { key: 'rem', label: 'REM', color: COLORS.rem, active: document.getElementById('chkRem').checked },
+          { key: 'deep', label: 'Deep', color: COLORS.deep, active: document.getElementById('chkDeep').checked },
+          { key: 'light', label: 'Light', color: COLORS.light, active: document.getElementById('chkLight').checked },
+          { key: 'uncat', label: 'Uncategorized', color: COLORS.uncat, active: document.getElementById('chkUncat').checked },
+          { key: 'trend', label: 'General Trend', color: COLORS.trend, active: document.getElementById('chkTrend').checked }
+        ];
+
+        metrics.filter(m => m.active).forEach(metric => {
+          const points = [];
+          days.forEach((day, i) => {
+            const log = logs.find(l => l.date === day.dateStr);
+            if (!log) return;
+            const x = padX + (i * slotW) + (slotW / 2);
+            let val = metric.key === 'trend' ? ((log.to - log.from) - log.awake) : log[metric.key];
+            if (val > 0) points.push({ x, y: getY(val), val, color: metric.color, label: metric.label });
+          });
+
+          if (points.length === 0) return;
+
+          ctx.beginPath(); ctx.strokeStyle = metric.color; ctx.lineWidth = 2.5;
+          ctx.moveTo(points[0].x, points[0].y);
+          for (let j = 1; j < points.length; j++) {
+            let cpX = (points[j-1].x + points[j].x) / 2;
+            ctx.bezierCurveTo(cpX, points[j-1].y, cpX, points[j].y, points[j].x, points[j].y);
+          }
+          ctx.stroke();
+          
+          points.forEach(p => {
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = p.color; ctx.stroke();
+            hitRegions.push({ type: 'point', x: p.x, y: p.y, r: 8, color: p.color, label: p.label, val: p.val });
+          });
+        });
+      }
+    }
+
+    const canvas = document.getElementById('chartCanvas');
+    const tooltip = document.getElementById('tooltip');
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      let hovered = hitRegions.find(r => 
+        r.type === 'bar' ? (mouseX >= r.x && mouseX <= r.x + r.w && mouseY >= r.y && mouseY <= r.y + r.h) :
+        (Math.pow(mouseX - r.x, 2) + Math.pow(mouseY - r.y, 2) <= r.r * r.r)
+      );
+      
+      if (hovered) {
+        tooltip.style.display = 'flex';
+        tooltip.style.left = (mouseX + 15) + 'px';
+        tooltip.style.top = (mouseY + 15) + 'px';
+        
+        let h = Math.floor(hovered.val), m = Math.round((hovered.val - h) * 60);
+        let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        
+        tooltip.innerHTML = `<div class="tooltip-color" style="background-color: ${hovered.color}"></div><span><strong>${hovered.label}</strong>: ${timeStr}</span>`;
+      } else tooltip.style.display = 'none';
+    });
+
+    canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    window.addEventListener('resize', drawChart);
+
+    loadCloudData();
+  </script>
+</body>
+</html>
